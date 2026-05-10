@@ -1,0 +1,189 @@
+--// Jump Controller - نسخة مبسطة (زر + خانة أرقام) مع سحب
+--// يعمل على Mobile و PC
+
+--// الخدمات
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+--// اللاعب
+local player = Players.LocalPlayer
+
+--// المتغيرات
+local enabled = true
+local jumpSpeed = 50
+local defaultSpeed = 16
+
+local character, humanoid
+
+--// إعداد الشخصية
+local function setupCharacter(char)
+	if not char then return end
+	character = char
+	pcall(function()
+		humanoid = char:WaitForChild("Humanoid")
+		defaultSpeed = humanoid.WalkSpeed
+	end)
+end
+
+if player.Character then
+	setupCharacter(player.Character)
+end
+
+player.CharacterAdded:Connect(setupCharacter)
+
+--// تطبيق السرعة
+local function applySpeed()
+	if not humanoid then return end
+	pcall(function()
+		if enabled then
+			humanoid.WalkSpeed = jumpSpeed
+		else
+			humanoid.WalkSpeed = defaultSpeed
+		end
+	end)
+end
+
+--// كشف حالات القفز
+local function hookStates()
+	if not humanoid then return end
+	humanoid.StateChanged:Connect(function(_, newState)
+		if not enabled then return end
+		pcall(function()
+			if newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.Freefall then
+				humanoid.WalkSpeed = jumpSpeed
+			elseif newState == Enum.HumanoidStateType.Landed then
+				humanoid.WalkSpeed = defaultSpeed
+			end
+		end)
+	end)
+end
+
+player.CharacterAdded:Connect(function(char)
+	setupCharacter(char)
+	wait(0.2)
+	hookStates()
+end)
+
+if humanoid then
+	hookStates()
+end
+
+--// ================= واجهة المستخدم البسيطة =================
+local gui = Instance.new("ScreenGui")
+gui.Name = "JumpControllerMini"
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+--// الإطار الرئيسي (قابل للسحب)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 120, 0, 85)  -- صغير الحجم
+mainFrame.Position = UDim2.new(0.5, -60, 0.5, -42)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+mainFrame.BackgroundTransparency = 0.2
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = gui
+
+--// زوايا دائرية للإطار
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = mainFrame
+
+--// ===== نظام السحب (الذي طلبتَه) =====
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+--// ===== خانة إدخال الأرقام (فوق الزر) =====
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0, 100, 0, 30)
+textBox.Position = UDim2.new(0.5, -50, 0, 8)
+textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+textBox.Text = tostring(jumpSpeed)
+textBox.PlaceholderText = "Speed"
+textBox.TextSize = 16
+textBox.Font = Enum.Font.GothamBold
+textBox.ClearTextOnFocus = false
+textBox.Parent = mainFrame
+
+--// زوايا دائرية للـ TextBox
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = textBox
+
+--// عند تغيير النص
+textBox.FocusLost:Connect(function(enterPressed)
+	local num = tonumber(textBox.Text)
+	if num then
+		jumpSpeed = math.clamp(num, 1, 250)  -- حد أقصى 250
+		textBox.Text = tostring(jumpSpeed)
+		applySpeed()
+	else
+		textBox.Text = tostring(jumpSpeed)
+	end
+end)
+
+--// ===== زر ON/OFF صغير بحواف مدورة =====
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 100, 0, 35)
+toggleButton.Position = UDim2.new(0.5, -50, 0, 45)
+toggleButton.Text = "ON"
+toggleButton.BackgroundColor3 = Color3.fromRGB(70, 180, 70)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 18
+toggleButton.Font = Enum.Font.GothamBold
+toggleButton.Parent = mainFrame
+
+--// زوايا دائرية صغيرة للزر (حواف صغيرة كما طلبت)
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)  -- 8px حواف صغيرة
+btnCorner.Parent = toggleButton
+
+--// تأثير عند الضغط (تغيير اللون)
+toggleButton.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	toggleButton.Text = enabled and "ON" or "OFF"
+	toggleButton.BackgroundColor3 = enabled and Color3.fromRGB(70, 180, 70) or Color3.fromRGB(180, 70, 70)
+	applySpeed()
+end)
+
+print("✅ JumpController Mini loaded - Drag anywhere on the frame")
