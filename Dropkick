@@ -1,11 +1,11 @@
--- ================= كود الدروب كيك المتكامل مع الواجهة =================
+-- ================= سكربت دروب كيك - by martin =================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
--- ================= UI (نفس الكود الأول مع تعديل طفيف) =================
+-- ================= الواجهة =================
 local gui = Instance.new("ScreenGui")
 gui.Name = "DropkickUI"
 gui.ResetOnSpawn = false
@@ -23,11 +23,11 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 10)
 corner.Parent = frame
 
--- عنوان
+-- عنوان (تم التعديل)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundTransparency = 1
-title.Text = "🟦 Dropkick Console"
+title.Text = "dropkick by martin"
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Parent = frame
 
@@ -51,7 +51,7 @@ cooldownLabel.Text = "Ready ⚡"
 cooldownLabel.TextColor3 = Color3.fromRGB(180,180,180)
 cooldownLabel.Parent = frame
 
--- ================= منطق الدروب كيك (من الكود الثاني) =================
+-- ================= منطق الدروب كيك =================
 local COOLDOWN = 1
 local lastUse = 0
 local busy = false
@@ -70,15 +70,93 @@ local function updateCooldownDisplay()
     end
 end
 
--- دالة تنفيذ الدروب كيك الفعلية (مأخوذة من الكود الثاني مع تحسينات)
 local function performDropkick(targetModel)
-    if busy then return false end  -- في كولداون
+    if busy then return false end
     
     local character = player.Character
     if not character then
         player.CharacterAdded:Wait()
         character = player.Character
     end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return false end
+    
+    local targetHumanoid = targetModel:FindFirstChild("Humanoid")
+    if not targetHumanoid or targetHumanoid.Health <= 0 then return false end
+    
+    lastUse = tick()
+    busy = true
+    button.Text = "FIRING 💥"
+    task.spawn(updateCooldownDisplay)
+    
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://10385907483"
+    local animTrack = humanoid:LoadAnimation(anim)
+    animTrack:Play()
+    
+    local tween = TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Linear), {
+        CFrame = targetModel:GetPivot() * CFrame.new(0, 0, -3)
+    })
+    tween:Play()
+    tween.Completed:Wait()
+    
+    targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    targetHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    if targetHumanoid.RootPart then
+        targetHumanoid.RootPart.Velocity = Vector3.new(0, 20, 50)
+    end
+    
+    targetHumanoid.Health = math.max(0, targetHumanoid.Health - 35)
+    
+    task.wait(1)
+    targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+    animTrack:Stop()
+    
+    return true
+end
+
+local function getTargetFromMouse()
+    local mouse = player:GetMouse()
+    local targetPart = mouse.Target
+    if targetPart and targetPart.Parent then
+        local characterModel = targetPart.Parent
+        if characterModel:FindFirstChild("Humanoid") and characterModel ~= player.Character then
+            return characterModel
+        end
+    end
+    return nil
+end
+
+button.MouseButton1Click:Connect(function()
+    if busy then return end
+    local target = getTargetFromMouse()
+    if target then
+        performDropkick(target)
+    else
+        cooldownLabel.Text = "No target!"
+        task.wait(0.5)
+        if not busy then cooldownLabel.Text = "Ready ⚡" end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        if busy then return end
+        local target = getTargetFromMouse()
+        if target then
+            performDropkick(target)
+        end
+    end
+end)
+
+if player.Character then
+    -- جاهز
+else
+    player.CharacterAdded:Connect(function() end)
+end    end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
