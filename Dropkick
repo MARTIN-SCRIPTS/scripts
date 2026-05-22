@@ -1,11 +1,11 @@
--- Dropkick by Martin
+-- ================= كود الدروب كيك المتكامل مع الواجهة =================
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
--- ================= UI =================
+-- ================= UI (نفس الكود الأول مع تعديل طفيف) =================
 local gui = Instance.new("ScreenGui")
 gui.Name = "DropkickUI"
 gui.ResetOnSpawn = false
@@ -27,7 +27,7 @@ corner.Parent = frame
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundTransparency = 1
-title.Text = "🟦 Dropkick by Martin"
+title.Text = "🟦 Dropkick Console"
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Parent = frame
 
@@ -35,6 +35,148 @@ title.Parent = frame
 local button = Instance.new("TextButton")
 button.Size = UDim2.new(0.8, 0, 0, 60)
 button.Position = UDim2.new(0.1, 0, 0.35, 0)
+button.Text = "DROPKICK"
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+button.Parent = frame
+
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+-- كولداون نص
+local cooldownLabel = Instance.new("TextLabel")
+cooldownLabel.Size = UDim2.new(1, 0, 0, 25)
+cooldownLabel.Position = UDim2.new(0, 0, 0.8, 0)
+cooldownLabel.BackgroundTransparency = 1
+cooldownLabel.Text = "Ready ⚡"
+cooldownLabel.TextColor3 = Color3.fromRGB(180,180,180)
+cooldownLabel.Parent = frame
+
+-- ================= منطق الدروب كيك (من الكود الثاني) =================
+local COOLDOWN = 1
+local lastUse = 0
+local busy = false
+
+local function updateCooldownDisplay()
+    while busy do
+        local remaining = COOLDOWN - (tick() - lastUse)
+        if remaining > 0 then
+            cooldownLabel.Text = "Cooldown: " .. string.format("%.1f", remaining)
+        else
+            cooldownLabel.Text = "Ready ⚡"
+            busy = false
+            button.Text = "DROPKICK"
+        end
+        task.wait(0.1)
+    end
+end
+
+-- دالة تنفيذ الدروب كيك الفعلية (مأخوذة من الكود الثاني مع تحسينات)
+local function performDropkick(targetModel)
+    if busy then return false end  -- في كولداون
+    
+    local character = player.Character
+    if not character then
+        player.CharacterAdded:Wait()
+        character = player.Character
+    end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return false end
+    
+    local targetHumanoid = targetModel:FindFirstChild("Humanoid")
+    if not targetHumanoid or targetHumanoid.Health <= 0 then return false end
+    
+    -- بدء الكولداون
+    lastUse = tick()
+    busy = true
+    button.Text = "FIRING 💥"
+    task.spawn(updateCooldownDisplay)
+    
+    -- تحميل وتشغيل الأنيميشن
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://10385907483"
+    local animTrack = humanoid:LoadAnimation(anim)
+    animTrack:Play()
+    
+    -- التحرك نحو الهدف
+    local tween = TweenService:Create(rootPart, TweenInfo.new(0.2, Enum.EasingStyle.Linear), {
+        CFrame = targetModel:GetPivot() * CFrame.new(0, 0, -3)
+    })
+    tween:Play()
+    tween.Completed:Wait()
+    
+    -- تطبيق القذف والإصابة
+    targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    targetHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    if targetHumanoid.RootPart then
+        targetHumanoid.RootPart.Velocity = Vector3.new(0, 20, 50)
+    end
+    
+    targetHumanoid.Health = math.max(0, targetHumanoid.Health - 35)
+    
+    task.wait(1)
+    targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+    animTrack:Stop()
+    
+    return true
+end
+
+-- دالة مساعدة للحصول على الهدف من الماوس
+local function getTargetFromMouse()
+    local mouse = player:GetMouse()
+    local targetPart = mouse.Target
+    if targetPart and targetPart.Parent then
+        local characterModel = targetPart.Parent
+        if characterModel:FindFirstChild("Humanoid") and characterModel ~= player.Character then
+            return characterModel
+        end
+    end
+    return nil
+end
+
+-- ربط زر الـ UI
+button.MouseButton1Click:Connect(function()
+    if busy then return end
+    local target = getTargetFromMouse()
+    if target then
+        performDropkick(target)
+    else
+        -- رسالة تنبيه بسيطة (اختياري)
+        cooldownLabel.Text = "No target!"
+        task.wait(0.5)
+        if not busy then cooldownLabel.Text = "Ready ⚡" end
+    end
+end)
+
+-- ربط ضغطة زر E (من الكود الثاني)
+local function setupCharacter()
+    local character = player.Character
+    if not character then
+        player.CharacterAdded:Wait()
+        character = player.Character
+    end
+    -- لا نحتاج لإعادة تعريف الدوال هنا، فقط نربط الحدث مرة واحدة
+end
+
+local inputConnection
+inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        if busy then return end
+        local target = getTargetFromMouse()
+        if target then
+            performDropkick(target)
+        end
+    end
+end)
+
+-- انتظار دخول اللاعب (للتأكد من وجود الـ Character)
+if player.Character then
+    setupCharacter()
+else
+    player.CharacterAdded:Connect(setupCharacter)
+endbutton.Position = UDim2.new(0.1, 0, 0.35, 0)
 button.Text = "DROPKICK"
 button.TextColor3 = Color3.fromRGB(255,255,255)
 button.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
