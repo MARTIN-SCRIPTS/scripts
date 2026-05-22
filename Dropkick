@@ -1,1 +1,86 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/MARTIN-SCRIPTS/scripts/refs/heads/main/Dropkick%20by%20martin"))()
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+-- ================= UI =================
+local gui = Instance.new("ScreenGui")
+gui.Name = "DropkickUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 160)
+frame.Position = UDim2.new(0.5, -110, 0.5, -80)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
+
+-- عنوان
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundTransparency = 1
+title.Text = "🟦 Dropkick Console"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Parent = frame
+
+-- زر التنفيذ
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.8, 0, 0, 60)
+button.Position = UDim2.new(0.1, 0, 0.35, 0)
+button.Text = "DROPKICK"
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+button.Parent = frame
+
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+-- كولداون نص
+local cooldownLabel = Instance.new("TextLabel")
+cooldownLabel.Size = UDim2.new(1, 0, 0, 25)
+cooldownLabel.Position = UDim2.new(0, 0, 0.8, 0)
+cooldownLabel.BackgroundTransparency = 1
+cooldownLabel.Text = "Ready ⚡"
+cooldownLabel.TextColor3 = Color3.fromRGB(180,180,180)
+cooldownLabel.Parent = frame
+
+-- ================= Logic =================
+local COOLDOWN = 1
+local lastUse = 0
+local busy = false
+
+local function fakeDropkick()
+    -- هنا حط الكود بتاعك الحقيقي
+    print("💥 Dropkick executed!")
+end
+
+local function updateCooldown()
+    while busy do
+        local remaining = COOLDOWN - (tick() - lastUse)
+        if remaining > 0 then
+            cooldownLabel.Text = "Cooldown: " .. string.format("%.1f", remaining)
+        else
+            cooldownLabel.Text = "Ready ⚡"
+            busy = false
+            button.Text = "DROPKICK"
+        end
+        task.wait(0.1)
+    end
+end
+
+button.MouseButton1Click:Connect(function()
+    if tick() - lastUse < COOLDOWN then return end
+
+    lastUse = tick()
+    busy = true
+
+    button.Text = "FIRING 💥"
+    fakeDropkick()
+
+    task.spawn(updateCooldown)
+end)
