@@ -1,5 +1,7 @@
+-- Dropkick by Martin
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
@@ -25,7 +27,7 @@ corner.Parent = frame
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundTransparency = 1
-title.Text = "🟦 Dropkick Console"
+title.Text = "🟦 Dropkick by Martin"
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Parent = frame
 
@@ -35,6 +37,133 @@ button.Size = UDim2.new(0.8, 0, 0, 60)
 button.Position = UDim2.new(0.1, 0, 0.35, 0)
 button.Text = "DROPKICK"
 button.TextColor3 = Color3.fromRGB(255,255,255)
+button.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+button.Parent = frame
+
+Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+-- كولداون نص
+local cooldownLabel = Instance.new("TextLabel")
+cooldownLabel.Size = UDim2.new(1, 0, 0, 25)
+cooldownLabel.Position = UDim2.new(0, 0, 0.8, 0)
+cooldownLabel.BackgroundTransparency = 1
+cooldownLabel.Text = "Ready ⚡"
+cooldownLabel.TextColor3 = Color3.fromRGB(180,180,180)
+cooldownLabel.Parent = frame
+
+-- ================= Logic (Dropkick) =================
+local COOLDOWN = 1
+local lastUse = 0
+local busy = false
+
+-- Animation (fake dropkick)
+local function setupAnimation(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    local anim = Instance.new("Animation")
+    anim.AnimationId = "rbxassetid://10385907483" -- actual dropkick animation
+    local animTrack = humanoid:LoadAnimation(anim)
+    return animTrack
+end
+
+local function dropkick(target, animTrack)
+    if not target or not target:IsA("Model") then return false end
+    local targetHumanoid = target:FindFirstChild("Humanoid")
+    if not targetHumanoid or targetHumanoid.Health <= 0 then return false end
+    
+    local character = player.Character
+    if not character then return false end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
+    -- Play animation
+    animTrack:Play()
+    
+    -- Move player towards target (if needed)
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = target:GetPivot() * CFrame.new(0, 0, -3)})
+    tween:Play()
+    tween.Completed:Wait()
+    
+    -- Apply force to target
+    local velocity = Vector3.new(0, 20, 50) -- upward and forward
+    targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    targetHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    if targetHumanoid.RootPart then
+        targetHumanoid.RootPart.Velocity = velocity
+    end
+    
+    -- Damage
+    local damage = 35
+    targetHumanoid.Health = math.max(0, targetHumanoid.Health - damage)
+    
+    -- Reset after 1 second
+    task.wait(1)
+    if targetHumanoid and targetHumanoid.Parent then
+        targetHumanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+    end
+    animTrack:Stop()
+    return true
+end
+
+-- Cooldown updater
+local function updateCooldown()
+    while busy do
+        local remaining = COOLDOWN - (tick() - lastUse)
+        if remaining > 0 then
+            cooldownLabel.Text = "Cooldown: " .. string.format("%.1f", remaining)
+        else
+            cooldownLabel.Text = "Ready ⚡"
+            busy = false
+            button.Text = "DROPKICK"
+        end
+        task.wait(0.1)
+    end
+end
+
+-- عندما يظهر الـ Character نحمل الأنيميشن
+local animTrack = nil
+player.CharacterAdded:Connect(function(character)
+    animTrack = setupAnimation(character)
+end)
+if player.Character then
+    animTrack = setupAnimation(player.Character)
+end
+
+-- زر التنفيذ
+button.MouseButton1Click:Connect(function()
+    if tick() - lastUse < COOLDOWN then return end
+    if not animTrack then return end
+    
+    -- تحديد الهدف من الماوس
+    local mouse = player:GetMouse()
+    local target = mouse.Target
+    if not target then return end
+    
+    local characterModel = target.Parent
+    if not characterModel:FindFirstChild("Humanoid") then
+        -- قد يكون الهدف جزء من نموذج اللاعب (مثل اليد) لذا نصعد لأعلى
+        characterModel = target:FindFirstAncestorWhichIsA("Model")
+        if not characterModel or not characterModel:FindFirstChild("Humanoid") then
+            cooldownLabel.Text = "No target!"
+            task.wait(0.5)
+            cooldownLabel.Text = "Ready ⚡"
+            return
+        end
+    end
+    
+    -- تنفيذ الركلة
+    lastUse = tick()
+    busy = true
+    button.Text = "FIRING 💥"
+    
+    local success = dropkick(characterModel, animTrack)
+    if not success then
+        cooldownLabel.Text = "Failed!"
+        task.wait(0.5)
+    end
+    
+    task.spawn(updateCooldown)
+end)button.TextColor3 = Color3.fromRGB(255,255,255)
 button.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
 button.Parent = frame
 
