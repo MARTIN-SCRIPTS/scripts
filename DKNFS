@@ -1,1 +1,1 @@
-https://raw.githubusercontent.com/MARTIN-SCRIPTS/scripts/refs/heads/main/Dropkick
+loadstring(game:HttpGet("https://raw.githubusercontent.com/MARTIN-SCRIPTS/scripts/refs/heads/main/Dropkick"))()
